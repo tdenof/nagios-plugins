@@ -2,7 +2,7 @@
 #  vim:ts=4:sts=4:sw=4:et
 #
 #  Author: Hari Sekhon
-#  Date: 2016-01-25 10:11:51 +0000 (Mon, 25 Jan 2016)
+#  Date: 2017-06-20 13:58:39 +0200 (Tue, 20 Jun 2017)
 #
 #  https://github.com/harisekhon/nagios-plugins
 #
@@ -16,9 +16,9 @@
 
 """
 
-Nagios Plugin to check the status of an Oozie server via the HTTP Rest API
+Nagios Plugin to check the status of a HiveServer2 Interactive LLAP server via the HTTP Rest API
 
-Tested on Oozie 4.2.0 on Hortonworks HDP 2.3.2, 2.4.0, 2.6.0
+Tested on Hive 1.2.1 on Hortonworks HDP 2.6.0
 
 """
 
@@ -36,7 +36,7 @@ sys.path.append(libdir)
 try:
     # pylint: disable=wrong-import-position
     from harisekhon.utils import UnknownError, support_msg_api
-    from harisekhon.utils import isJson
+    from harisekhon.utils import isJson, sec2human
     from harisekhon import RequestHandler
     from harisekhon import StatusNagiosPlugin
 except ImportError as _:
@@ -47,39 +47,48 @@ __author__ = 'Hari Sekhon'
 __version__ = '0.5'
 
 
-class CheckOozieStatus(StatusNagiosPlugin):
+class CheckHiveServer2InteractiveStatus(StatusNagiosPlugin):
 
     def __init__(self):
         # Python 2.x
-        super(CheckOozieStatus, self).__init__()
+        super(CheckHiveServer2InteractiveStatus, self).__init__()
         # Python 3.x
         # super().__init__()
-        self.name = 'Oozie'
-        self.default_port = 11000
+        self.name = 'HiveServer2 Interactive LLAP'
+        self.default_port = 15002
         self.protocol = 'http'
+        self.msg2 = ''
 
     def add_options(self):
-        super(CheckOozieStatus, self).add_options()
+        super(CheckHiveServer2InteractiveStatus, self).add_options()
         self.add_opt('-S', '--ssl', action='store_true', help='Use SSL')
 
     def get_status(self):
         if self.get_opt('ssl'):
             self.protocol = 'https'
-        url = '%(protocol)s://%(host)s:%(port)s/oozie/v1/admin/status' % self.__dict__
+        url = '%(protocol)s://%(host)s:%(port)s/status' % self.__dict__
         req = RequestHandler().get(url)
         return self.parse(req)
 
+    def get_key(self, json_data, key):
+        try:
+            return json_data[key]
+        except KeyError:
+            raise UnknownError('\'{0}\' key was not returned in output from '.format(key) +
+                               'HiveServer2 Interactive instance at {0}:{1}. {2}'\
+                               .format(self.host, self.port, support_msg_api()))
+
     def parse(self, req):
         if not isJson(req.content):
-            raise UnknownError('non-JSON returned by Oozie server at {0}:{1}'.format(self.host, self.port))
-        status = None
-        try:
-            _ = json.loads(req.content)
-            status = _['systemMode']
-        except KeyError:
-            raise UnknownError('\'systemMode\' key was not returned in output from Oozie at {0}:{1}. {2}'\
-                               .format(self.host, self.port, support_msg_api()))
-        if status == 'NORMAL':
+            raise UnknownError('non-JSON returned by HiveServer2 Interactive instance at {0}:{1}'\
+                               .format(self.host, self.port))
+        _ = json.loads(req.content)
+        status = self.get_key(_, 'status')
+        uptime = self.get_key(_, 'uptime')
+        self.msg2 = 'uptime = {0}'.format(sec2human(int(uptime/1000)))
+        if self.verbose:
+            self.msg2 += ', version ' + self.get_key(_, 'build').split('from')[0]
+        if status == 'STARTED':
             self.ok()
         else:
             self.critical()
@@ -87,4 +96,4 @@ class CheckOozieStatus(StatusNagiosPlugin):
 
 
 if __name__ == '__main__':
-    CheckOozieStatus().main()
+    CheckHiveServer2InteractiveStatus().main()

@@ -2,7 +2,7 @@
 #  vim:ts=4:sts=4:sw=4:et
 #
 #  Author: Hari Sekhon
-#  Date: 2016-01-25 10:11:51 +0000 (Mon, 25 Jan 2016)
+#  Date: 2017-06-20 17:24:55 +0200 (Tue, 20 Jun 2017)
 #
 #  https://github.com/harisekhon/nagios-plugins
 #
@@ -16,9 +16,9 @@
 
 """
 
-Nagios Plugin to check the status of an Oozie server via the HTTP Rest API
+Nagios Plugin to check the status of an Atlas metadata server instance via the HTTP Rest API
 
-Tested on Oozie 4.2.0 on Hortonworks HDP 2.3.2, 2.4.0, 2.6.0
+Tested on Atlas 0.8.0 on Hortonworks HDP 2.6.0
 
 """
 
@@ -47,44 +47,61 @@ __author__ = 'Hari Sekhon'
 __version__ = '0.5'
 
 
-class CheckOozieStatus(StatusNagiosPlugin):
+class CheckAtlasStatus(StatusNagiosPlugin):
 
     def __init__(self):
         # Python 2.x
-        super(CheckOozieStatus, self).__init__()
+        super(CheckAtlasStatus, self).__init__()
         # Python 3.x
         # super().__init__()
-        self.name = 'Oozie'
-        self.default_port = 11000
+        self.name = 'Atlas'
+        self.default_port = 21000
         self.protocol = 'http'
+        self.expect_active = False
 
     def add_options(self):
-        super(CheckOozieStatus, self).add_options()
+        super(CheckAtlasStatus, self).add_options()
         self.add_opt('-S', '--ssl', action='store_true', help='Use SSL')
+        self.add_opt('-A', '--active', action='store_true', help='Expect status = ACTIVE')
+
+    def process_options(self):
+        super(CheckAtlasStatus, self).process_options()
+        self.expect_active = self.get_opt('active')
 
     def get_status(self):
         if self.get_opt('ssl'):
             self.protocol = 'https'
-        url = '%(protocol)s://%(host)s:%(port)s/oozie/v1/admin/status' % self.__dict__
+        url = '%(protocol)s://%(host)s:%(port)s/api/atlas/admin/status' % self.__dict__
         req = RequestHandler().get(url)
         return self.parse(req)
 
+    def get_key(self, json_data, key):
+        try:
+            return json_data[key]
+        except KeyError:
+            raise UnknownError('\'{0}\' key was not returned in output from '.format(key) +
+                               'Atlas metadata server instance at {0}:{1}. {2}'\
+                               .format(self.host, self.port, support_msg_api()))
+
     def parse(self, req):
         if not isJson(req.content):
-            raise UnknownError('non-JSON returned by Oozie server at {0}:{1}'.format(self.host, self.port))
-        status = None
-        try:
-            _ = json.loads(req.content)
-            status = _['systemMode']
-        except KeyError:
-            raise UnknownError('\'systemMode\' key was not returned in output from Oozie at {0}:{1}. {2}'\
-                               .format(self.host, self.port, support_msg_api()))
-        if status == 'NORMAL':
+            raise UnknownError('non-JSON returned by Atlas metadata server instance at {0}:{1}'\
+                               .format(self.host, self.port))
+        _ = json.loads(req.content)
+        status = self.get_key(_, 'Status')
+        if status == 'ACTIVE':
             self.ok()
+        elif self.expect_active:
+            self.critical()
+        elif status == 'PASSIVE':
+            pass
+        elif status == 'BECOMING_ACTIVE' or \
+             status == 'BECOMING_PASSIVE':
+            self.warning()
         else:
             self.critical()
         return status
 
 
 if __name__ == '__main__':
-    CheckOozieStatus().main()
+    CheckAtlasStatus().main()

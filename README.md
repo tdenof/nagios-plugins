@@ -124,6 +124,8 @@ Make sure to run the [automated build](https://github.com/harisekhon/nagios-plug
 - ```check_mapr*.pl``` - Hadoop cluster checks via MapR Control System API - checks services and nodes, MapR-FS space (cluster and per volume), volume states, volume block replication, volume snapshots and mirroring, MapR-FS per disk space utilization on nodes, failed disks, CLDB heartbeats, MapR alarms, MapReduce mode and memory utilization, disk and role balancer metrics. These are noticeably faster than running equivalent maprcli commands (exceptions: disk/role balancer use maprcli).
 - ```check_ibm_biginsights_*.pl``` - Hadoop cluster checks via IBM BigInsights Console API - checks services, nodes, agents, BigSheets workbook runs, dfs paths and properties, HDFS space and block replication, BI console version, BI console applications deployed
 - ```check_apache_drill_*``` - check Apache Drill status and metrics for a given node, apply thresholds to a given metric or return multiple or all metrics
+- ```check_atlas_*.py``` - Apache Atlas status and entity checks including entity existence, state=ACTIVE, expected type, expected tags are assigned to entity (eg. PII - important because Ranger ACLs to allow or deny access to data can be assigned based on tags)
+- ```check_hiveserver2_llap_*.py``` - HiveServer2 LLAP Interactive server status and uptime, peer count, check for a specific peer host fqdn via regex
 - ```check_zookeeper.pl``` - ZooKeeper server checks, multiple layers: "is ok" status, is writable (quorum), operating mode (leader/follower vs standalone), gather statistics
 - ```check_zookeeper_*znode*.pl``` - ZooKeeper znode checks using ZK Perl API, useful for HBase, Kafka, SolrCloud, Hadoop NameNode HA & JobTracker HA (ZKFC) and any other ZooKeeper based service. Very versatile with multiple optional checks including data vs regex, json field extraction, ephemeral status, child znodes, znode last modified age
 
@@ -141,7 +143,7 @@ Attivio, Blue Talon, Datameer, Platfora, Zaloni plugins are also available for t
 These programs check these message brokers end-to-end via their API, by acting as both a producer and a consumer and checking that a unique generated message passes through the broker cluster and is received by the consumer at the other side successfully. They report the publish, consumer and total timings taken, against which thresholds can be applied, and are also available as perfdata for graphing.
 - `check_kafka.pl / check_kafka.py` - Kafka brokers API write & read back with configurable topics/partition and producer behaviour for acks, sleep, retries, backoff, can also lists topics and partitions
 - `check_redis_publish_subscribe.pl` - Redis publish-subscribe API write & read back with configurable subscriber wait
-- `check_rabbitmq*.py` - RabbitMQ brokers AMQP API write & read back with configurable vhost, exchange, exchange type, queue, routing key, durability, RabbitMQ 'confirms' protocol extension & standard AMQP transactions support. Checks via the RabbitMQ management API include aliveness queue health test, built-in healthchecks, cluster name, vhost, exchange with optional checks on it's type (direct, fanout, headers, topic) and durability true/false, user auth and permissions tags, stats db event queue
+- `check_rabbitmq*.py` - RabbitMQ brokers AMQP API write & read back with configurable vhost, exchange, exchange type, queue, routing key, durability, RabbitMQ 'confirms' protocol extension & standard AMQP transactions support. Checks via the RabbitMQ management API include aliveness queue health test, built-in health checks, cluster name, vhost, exchange with optional validation of exchange type (direct, fanout, headers, topic) and durability (true/false), user auth and permissions tags, stats db event queue
 <!--
 Debian / Ubuntu systems also have other unrelated RabbitMQ plugins in the `nagios-plugins-rabbitmq` package
 -->
@@ -154,8 +156,8 @@ Debian / Ubuntu systems also have other unrelated RabbitMQ plugins in the `nagio
 - ```check_dns.pl``` - advanced DNS query checker supporting NS records for your public domain name, MX records for your mail servers, SOA, SRV, TXT as well as A and PTR records. Can optionally specify `--expected` literal or `--regex` results (which is anchored for security) for strict validation to ensure all records returned are expected and authorized. The record, type and result(s) are output along with the DNS query timing perfdata for graphing DNS performance
 - `check_disk_write.pl` - canary write test, catches partitions getting auto-remounted read-only by Linux when it detects underlying storage issues (often caused by malfunctioning block devices, raid arrays, failing disks)
 - `check_git_branch_checkout.p*` - if deploying from a git checkout (eg. puppetmaster), make sure it stays on the expected branch otherwise you could auto-deploy the wrong stuff
-- `check_consul_*` - check Consul API write / read back, arbitrary key-value content checks, number of cluster peers & version
-- ```check_mesos_*.pl``` - check Mesos master health API, master & slaves state information including leader and versions, activated & deactivated slaves, number of Chronos jobs, master & slave metrics
+- `check_consul_*.py` - Consul API write / read back, arbitrary key-value content checks, number of cluster peers & version
+- ```check_mesos_*.pl``` - Mesos master health API, master & slaves state information including leader and versions, activated & deactivated slaves, number of Chronos jobs, master & slave metrics
 - ```check_mysql_query.pl``` - flexible free-form SQL queries - can check almost anything - obsoleted a dozen custom MySQL plugins and prevented writing many more. You may also be interested in [Percona's plugins](https://www.percona.com/doc/percona-monitoring-plugins/latest/index.html)
 - ```check_mysql_config.pl``` - detect differences in your /etc/my.cnf and running MySQL config to catch DBAs making changes to running databases without saving to /etc/my.cnf or backporting to Puppet. Can also be used to remotely validate configuration compliance against a known good baseline
 - `check_linux_*` - checks RAM used, CPU context switches, system file descriptors, interface errors / promiscous mode / duplex / speed / MTU / stats, load normalized per CPU core (more useful than the default check_load plugin which would need different configs for heterogenous hardware), timezone settings, users / groups present (eg. PAM/LDAP integration is working), duplicate UID/GIDs (helps detects rogue uid 0 accounts and more common LDAP vs local id range overlap misconfigurations), groups.allow contains only specific groups
@@ -165,13 +167,16 @@ Debian / Ubuntu systems also have other unrelated RabbitMQ plugins in the `nagio
 - `check_*_version*` - checks running versions of software, primarily written to detect version inconsistency across clusters of servers and failed/partial upgrades across large automated infrastructures, as well as containerized images are using the versions we expect, which is also used to validate which versions of software programs in this repo are tested against. `check_cluster_version.pl` can be used to tie together versions returned from many different servers (by passing it their outputs via Nagios macros) to ensure a cluster is all running the same version of software even if you don't enforce a particular `--expected` version on individual systems
 - ```check_yum.py / check_yum.pl``` - widely used yum security updates checker for RHEL 5 - 7 systems dating back to 2008. You'll find forks of this around including NagiosExchange but please re-unify on this central updated version. Also has a Perl version which is a newer straight port with nicer more concise code and better library backing as well as configurable self-timeout. For those running Debian-based systems like Ubuntu see `check_apt` from the `nagios-plugins-basic` package.
 
-##### Compatability / Translation Plugins
-- `check_mk_wrapper.py` - translate standard nagios plugins to Check_MK local plugin format
-- `geneos_wrapper.py` - allows the Geneos monitoring system to utilize nagios plugins
-
-... and there are many more.
+... and there are many more plugins than we have space to list here, have a browse!
 
 This code base is under active development and there are many more cool plugins pending import.
+
+##### Compatability / Translation Plugins
+
+These allow you to use any standard nagios plugin with other non-Nagios style monitoring systems by prefixing the nagios plugin command with these programs, which will execute and translate the outputs:
+
+- `check_mk_wrapper.py` - executes and translates output from any standard nagios plugin to Check_MK local plugin format
+- `geneos_wrapper.py / csv_wrapper.py` - executes and translates output from any standard nagios plugin to Geneos / CSV format
 
 ### See Also
 
@@ -405,10 +410,10 @@ Contributions are more than welcome with patches accepted in the form of Github 
 [Tools](https://github.com/harisekhon/tools) & [PyTools](https://github.com/harisekhon/pytools) repos - contains another 50+ programs including useful tools such as:
 * Hive / Pig => Elasticsearch / SolrCloud indexers
 * Hadoop HDFS performance debugger, native checksum extractor, file retention policy script, HDFS file stats, XML & running Hadoop cluster config differ
-* ```watch_url.pl``` for debugging load balanced web farms
+* ```watch_url.pl``` - debugs load balanced web farms via multiple queries to a URL - returns HTTP status codes, % success across all requests, timestamps, round trip times, and optionally the output
 * tools for Ambari, Pig, Hive, Spark + IPython Notebook, Solr CLI
 * code reCaser for SQL / Pig / Neo4j / Hive HQL / Cassandra / MySQL / PostgreSQL / Impala / MSSQL / Oracle / Dockerfiles
-* ```scrub.pl``` anonymizes configs / logs for posting online - replaces hostnames/domains/FQDNs, IPs, passwords/keys in Cisco/Juniper configs, custom extensible phrases like your name or your company name
+* ```scrub.pl``` - anonymizes configs / logs for posting online - replaces hostnames/domains/FQDNs, IPs, passwords/keys in Cisco/Juniper configs, custom extensible phrases like your name or your company name
 * ```validate_json/yaml/xml/avro/parquet.py``` - validates JSON, XML, YAML, Avro, Parquet including directory trees, standard input and even multi-record JSON as found in MongoDB and Hadoop / Big Data systems.
 * PySpark Avro / CSV / JSON / Parquet data converters
 * Ambari Blueprints tool & templates
