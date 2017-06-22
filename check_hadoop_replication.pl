@@ -53,7 +53,7 @@ set_timeout();
 
 $status = "OK";
 
-my $url = "http://$host:$port/jmx";
+my $url = "http://$host:$port/jmx?qry=Hadoop:service=NameNode,name=FSNamesystem";
 
 my $content = curl $url, "NameNode";
 

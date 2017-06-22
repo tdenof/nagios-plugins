@@ -74,6 +74,9 @@ $host       = validate_resolvable($host);
 $port       = validate_port($port);
 $bean       = validate_java_bean($bean) if defined($bean);
 my $url     = "http://$host:$port/jmx";
+if(defined($bean)){
+	$url .= "\?qry\=$bean";
+    }
 my %stats;
 my @stats;
 unless($list_beans){

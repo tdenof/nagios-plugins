@@ -55,7 +55,7 @@ set_timeout();
 
 $status = "OK";
 
-my $url = "http://$host:$port/jmx";
+my $url = "http://$host:$port/jmx?qry=java.lang:type=Memory";
 
 my $content = curl $url;
 

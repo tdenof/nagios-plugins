@@ -46,7 +46,7 @@ get_options();
 $host   = validate_host($host);
 $host   = validate_resolvable($host);
 $port   = validate_port($port);
-my $url = "http://$host:$port/jmx";
+my $url = "http://$host:$port/jmx?qry=$bean";
 if(not defined($node)){
     usage "node not defined";
 }
