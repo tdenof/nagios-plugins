@@ -50,7 +50,7 @@ set_timeout();
 
 $status = "OK";
 
-my $url = "http://$host:$port/jmx";
+my $url = "http://$host:$port/jmx?qry=Hadoop:service=ResourceManager,name=QueueMetrics,q0=root";
 
 my $content = curl $url;
 
