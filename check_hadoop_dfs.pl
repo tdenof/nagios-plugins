@@ -41,12 +41,13 @@ use HariSekhonUtils;
 $ENV{"PATH"} .= ":/opt/hadoop/bin:/usr/local/hadoop/bin";
 
 my $default_hadoop_user = "hdfs";
-my $default_hadoop_bin  = "hdfs";
+my $default_hadoop_bin  = "/home/hadoop/hadoop/bin/hdfs";
 my $legacy_hadoop_user  = "hadoop";
 my $legacy_hadoop_bin   = "hadoop";
 
 my $hadoop_bin  = $default_hadoop_bin;
 my $hadoop_user = $default_hadoop_user;
+my $no_check = 0;
 
 my $hdfs_space  = 0;
 my $replication = 0;
@@ -60,10 +61,11 @@ my $nodes       = 0;
     "n|nodes-available" => [ \$nodes,        "Checks the number of available datanodes against the given warning/critical thresholds as the lower limits (inclusive). Any dead datanodes raises warning" ],
     %thresholdoptions,
     "hadoop-bin=s"      => [ \$hadoop_bin,   "Path to 'hdfs' or 'hadoop' command if not in \$PATH" ],
+    "no-check"      => [ \$no_check,   "Don't check if the binary exists (May conflict with perl -T)" ],
     "hadoop-user=s"     => [ \$hadoop_user,  "Checks that this plugin is being run by the hadoop user (defaults to '$default_hadoop_user', falls back to trying '$legacy_hadoop_user' unless specified)" ],
 );
 
-@usage_order = qw/hdfs-space replication balance nodes-available warning critical hadoop-bin hadoop-user/;
+@usage_order = qw/hdfs-space replication balance nodes-available warning critical hadoop-bin no-check hadoop-user/;
 get_options();
 
 if($progname eq "check_hadoop_hdfs_space.pl"){
@@ -107,13 +109,17 @@ $hadoop_user = validate_user($hadoop_user);
 my $hadoop_bin_tmp;
 unless($hadoop_bin_tmp = which($hadoop_bin)){
     if($hadoop_bin eq $default_hadoop_bin){
-        vlog2 "cannot find command '$hadoop_bin', trying '$legacy_hadoop_bin'";
-        $hadoop_bin_tmp = which($legacy_hadoop_bin) || quit "UNKNOWN", "cannot find command '$hadoop_bin' or '$legacy_hadoop_bin' in PATH ($ENV{PATH})";
+        unless($no_check){
+            vlog2 "cannot find command '$hadoop_bin', trying '$legacy_hadoop_bin'";
+            $hadoop_bin_tmp = which($legacy_hadoop_bin) || quit "UNKNOWN", "cannot find command '$hadoop_bin' or '$legacy_hadoop_bin' in PATH ($ENV{PATH})";
+        }
     } else {
         quit "UNKNOWN", "cannot find command '$hadoop_bin' in PATH ($ENV{PATH})";
     }
 }
-$hadoop_bin = $hadoop_bin_tmp;
+unless($no_check){
+	$hadoop_bin = $hadoop_bin_tmp;
+}
 $hadoop_bin  =~ /\b\/?(?:hadoop|hdfs)$/ or quit "UNKNOWN", "invalid hadoop program '$hadoop_bin' given, should be called hadoop or hdfs!";
 vlog_option "hadoop path", $hadoop_bin;
 vlog2;
